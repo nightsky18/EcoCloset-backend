@@ -7,6 +7,11 @@ import 'dotenv/config';
 import authRoutes from './routes/authRoutes.js';
 import directoryRoutes from './routes/directoryRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
+import adminDirectoryRoutes from './routes/adminDirectoryRoutes.js';
+import adminEventRoutes from './routes/adminEventRoutes.js';
+import forumRoutes from './routes/forumRoutes.js';
+import adRoutes from './routes/adRoutes.js';
+import adAdminRoutes from './routes/adAdminRoutes.js';
 
 // Inicialización
 const app = express();
@@ -35,10 +40,15 @@ app.get('/', (req, res) => {
   res.status(200).json({ name: 'Ecocloset API', version: '1.0.0' });
 });
 
-// Montaje de rutas de la API
+// Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/directory', directoryRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/admin/directory', adminDirectoryRoutes);
+app.use('/api/admin/events', adminEventRoutes);
+app.use('/api/forum', forumRoutes);
+app.use('/api/ads', adRoutes);
+app.use('/api/admin/ads', adAdminRoutes);
 
 console.log('Rutas de la API cargadas.');
 
