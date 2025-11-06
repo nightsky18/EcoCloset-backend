@@ -12,9 +12,24 @@ import adminEventRoutes from './routes/adminEventRoutes.js';
 import forumRoutes from './routes/forumRoutes.js';
 import adRoutes from './routes/adRoutes.js';
 import adAdminRoutes from './routes/adAdminRoutes.js';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
 
 // Inicialización
 const app = express();
+// Límite de tasa para rutas de autenticación
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // 5 intentos
+  message: 'Demasiados intentos de autenticación, intente más tarde'
+});
+
+// Límite de tasa general para otras rutas
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
 
 // Middlewares básicos
 app.use(cors({
@@ -36,12 +51,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', message: 'El servidor está funcionando correctamente' });
 });
 
+// Seguridad adicional
+app.use(helmet());
+app.use(mongoSanitize());
+
 app.get('/', (req, res) => {
   res.status(200).json({ name: 'Ecocloset API', version: '1.0.0' });
 });
 
 // Rutas de la API
-app.use('/api/auth', authRoutes);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 app.use('/api/directory', directoryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/admin/directory', adminDirectoryRoutes);
@@ -49,6 +69,7 @@ app.use('/api/admin/events', adminEventRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/admin/ads', adAdminRoutes);
+app.use('/api', generalLimiter);
 
 console.log('Rutas de la API cargadas.');
 
