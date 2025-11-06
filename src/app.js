@@ -1,4 +1,4 @@
-// Configuración de middelware y rutas
+// Configuración de middleware y rutas
 
 import express from 'express';
 import cors from 'cors';
@@ -11,16 +11,22 @@ import eventRoutes from './routes/eventRoutes.js';
 // Inicialización
 const app = express();
 
-// Middlewares
+// Middlewares básicos
 app.use(cors({
-  origin: process.env.CORS_ORIGIN, // Permite solo peticiones del frontend
+  origin: process.env.CORS_ORIGIN,
   credentials: true,
 }));
-app.use(morgan('dev')); // Muestra logs de peticiones en consola
-app.use(express.json()); // Permite al servidor entender JSON
+app.use(morgan('dev'));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ruta de Health Check
+// Middleware de logging ANTES de las rutas (para debuggear)
+app.use((req, res, next) => {
+  console.log('Hit:', req.method, req.originalUrl);
+  next();
+});
+
+// Rutas de Health Check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', message: 'El servidor está funcionando correctamente' });
 });
@@ -29,19 +35,27 @@ app.get('/', (req, res) => {
   res.status(200).json({ name: 'Ecocloset API', version: '1.0.0' });
 });
 
+// Montaje de rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/directory', directoryRoutes);
 app.use('/api/events', eventRoutes);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
+console.log('Rutas de la API cargadas.');
 
+// Middleware para manejo de errores de parseo JSON
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'JSON inválido en el cuerpo de la petición' });
+  }
+  next(err);
+});
 
-// Middleware para manejar rutas no encontradas (404)
+// Middleware para rutas no encontradas (404) - DEBE IR DESPUÉS de todas las rutas
 app.use((req, res, next) => {
   res.status(404).json({ message: 'Ruta no encontrada' });
 });
 
-// Middleware para manejo de errores global
+// Middleware para manejo de errores global - SIEMPRE AL FINAL
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Ha ocurrido un error en el servidor', error: err.message });
