@@ -50,10 +50,18 @@ app.get('/health', (req, res) =>
 );
 app.get('/', (req, res) => res.status(200).json({ name: 'Ecocloset API', version: '1.0.0' }));
 
-// Rate limiters
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: 'Demasiados intentos de autenticación, intente más tarde' });
-const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
-app.use('/api/auth', authLimiter);
+// Rate limiters (desarrollo)
+const authLimiterLogin = rateLimit({
+  windowMs: 2 * 60 * 1000,   // 2 minutos
+  max: 30,                   // 30 intentos
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Demasiados intentos, inténtalo más tarde'
+});
+const generalLimiter = rateLimit({ windowMs: 2 * 60 * 1000, max: 300 });
+
+// Aplica solo a login; deja register libre durante integración
+app.use('/api/auth/login', authLimiterLogin);
 app.use('/api', generalLimiter);
 
 // Routers
