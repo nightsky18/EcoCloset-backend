@@ -73,10 +73,78 @@ export const listComments = async (req, res) => {
 
 export const createComment = async (req, res) => {
   try {
-    const { contenido, parent } = req.body;
-    const com = await Comment.create({ post: req.params.postId, autor: req.user._id, contenido, parent });
-    return res.status(201).json(com);
-  } catch (e) {
-    return res.status(400).json({ message: 'Error al crear comentario', error: e.message });
+    const { postId } = req.params;
+    const { contenido } = req.body;
+    const userId = req.user._id;
+
+    console.log('[createComment] Post ID:', postId);
+    console.log('[createComment] Contenido:', contenido);
+    console.log('[createComment] User:', userId);
+
+    // Validar que postId es ObjectId válido
+    if (!postId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.warn('[createComment] ID inválido:', postId);
+      return res.status(400).json({ message: 'ID de post inválido' });
+    }
+
+    // Validar contenido
+    if (!contenido || contenido.trim().length === 0) {
+      return res.status(400).json({ message: 'El contenido no puede estar vacío' });
+    }
+
+    // Buscar post
+    const post = await Post.findById(postId);
+    if (!post) {
+      console.warn('[createComment] Post no encontrado:', postId);
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    console.log('[createComment] Post encontrado:', post._id);
+
+    // Crear comentario
+    const newComment = {
+      contenido: contenido.trim(),
+      autor: {
+        _id: userId,
+        nombre: req.user.nombre || 'Usuario',
+        email: req.user.email
+      },
+      createdAt: new Date()
+    };
+
+    console.log('[createComment] Nuevo comentario:', newComment);
+
+    // Inicializar array si no existe
+    if (!post.comentarios) {
+      post.comentarios = [];
+    }
+
+    // Agregar comentario
+    post.comentarios.push(newComment);
+
+    // Actualizar contador
+    post.comentariosCount = post.comentarios.length;
+
+    // Guardar post
+    await post.save();
+
+    console.log('[createComment] Post guardado:', post._id);
+    console.log('[createComment] Total comentarios:', post.comentarios.length);
+    console.log('[createComment] Post actualizado:', post);
+
+    res.status(201).json({
+      message: 'Comentario agregado exitosamente',
+      post: post
+    });
+
+  } catch (err) {
+    console.error('[createComment] Error:', err);
+    console.error('[createComment] Stack:', err.stack);
+    res.status(500).json({ 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
+
+
