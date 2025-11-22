@@ -2,23 +2,72 @@ import Event from '../models/Event.js';
 
 export const listEvents = async (req, res) => {
   try {
-    const { desde, hasta, ciudad, categoria, estado, page = 1, limit = 20 } = req.query;
-    const filter = {};
-    if (ciudad) filter.ciudad = ciudad;
-    if (categoria) filter.categorias = categoria;
-    if (estado) filter.estado = estado;
-    if (desde || hasta) {
-      filter.fechaInicio = {};
-      if (desde) filter.fechaInicio.$gte = new Date(desde);
-      if (hasta) filter.fechaInicio.$lte = new Date(hasta);
+    const { city, category, fromDate, toDate, page = 1, limit = 12 } = req.query;
+    
+    console.log('[listEvents] Filtros:', { city, category, fromDate, toDate, page, limit });
+    
+    // Construir query dinámicamente
+    let query = {};
+    
+    // Filtrar por ciudad
+    if (city && city !== 'Todas las ciudades') {
+      query.ciudad = city;
     }
-    const skip = (Number(page) - 1) * Number(limit);
-    const [items, total] = await Promise.all([
-      Event.find(filter).skip(skip).limit(Number(limit)).sort({ fechaInicio: 1 }),
-      Event.countDocuments(filter)
-    ]);
-    return res.status(200).json({ items, total, page: Number(page), limit: Number(limit) });
+    
+    // Filtrar por categoría
+    if (category && category !== 'Todas las categorías') {
+      query.categoria = category;
+    }
+    
+    // Filtrar por rango de fechas
+    if (fromDate || toDate) {
+      query.fecha = {};
+      if (fromDate) {
+        query.fecha.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        query.fecha.$lte = new Date(toDate + 'T23:59:59');
+      }
+    }
+    
+    console.log('[listEvents] Query MongoDB:', query);
+    
+    // Contar total con filtros
+    const total = await Event.countDocuments(query);
+    
+    // Paginar
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Obtener eventos
+    const events = await Event.find(query)
+      .sort({ fecha: 1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    console.log('[listEvents] Eventos encontrados:', events.length, 'de', total);
+    
+    return res.status(200).json({
+      items: events,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(total / parseInt(limit))
+    });
   } catch (e) {
-    return res.status(500).json({ message: 'Error al listar eventos', error: e.message });
+    console.error('[listEvents] Error:', e);
+    return res.status(500).json({ message: 'Error al obtener eventos', error: e.message });
+  }
+};
+
+
+export const getEventById = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Evento no encontrado' });
+    }
+    return res.status(200).json(event);
+  } catch (e) {
+    return res.status(500).json({ message: 'Error', error: e.message });
   }
 };
